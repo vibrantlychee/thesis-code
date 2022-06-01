@@ -7,15 +7,16 @@ from scipy.integrate import odeint
 
 # lorenz-63
 def generate_lorenz_63(params=[10, 28, 8/3], initial_state=[1, 1, 1],
-                        del_t=0.02, t_max=1000):
+                        del_t=0.02, steps=1000, washout=500):
     '''
     Input:      params:         parameters of the Lorenz-63 system
                 initial_state:  initial spatial conditions at time t=0
                 del_t:          size of time step
-                t_max:          maximum time value, which together with del_t 
-                                determines the number of time increments (T)
+                steps:          number of time steps
+                washout:        only return values with index greater than or 
+                                equal to washout
     
-    Output:     a (t_max / del_t)x3 matrix represented as a numpy.ndarray
+    Output:     a stepsx3 matrix represented as a numpy.ndarray
     '''
     # get (sigma, rho, beta) from params vector
     sigma, rho, beta = params
@@ -38,24 +39,26 @@ def generate_lorenz_63(params=[10, 28, 8/3], initial_state=[1, 1, 1],
         )
     
     # define length of simulation (time), i.e. number of time increments
-    T = np.arange(0, t_max, del_t)
+    T = np.linspace(0, int(del_t * steps), steps)
 
     # integrate the system and return generated data
     all_data = odeint(func = f, y0 = initial_state, t = T)
 
-    return all_data
+    # washout time of 500 time steps
+    return all_data[washout:]
 
 # roessler
 def generate_roessler(params=[0.1, 0.1, 18], initial_state=[1, 1, 1],
-                        del_t=0.3, t_max=1000):
+                        del_t=0.018, steps=1000, washout=500):
     '''
     Input:      params:         parameters of the Lorenz-63 system
                 initial_state:  initial spatial conditions (time t=0)
                 del_t:          size of time step
-                t_max:          maximum time_value, which together with del_t 
-                                determines the number of time increments (T)
+                steps:          number of time steps
+                washout:        only return values with index greater than or 
+                                equal to washout
     
-    Output:     a (t_max / del_t)x3 matrix represented as a numpy.ndarray
+    Output:     a stepsx3 matrix represented as a numpy.ndarray
     '''
 
     # get (a, b, c) from params vector
@@ -79,12 +82,12 @@ def generate_roessler(params=[0.1, 0.1, 18], initial_state=[1, 1, 1],
         )
     
     # define length of simulation (time)
-    T = np.arange(0, t_max, del_t)
+    T = np.linspace(0, int(del_t * steps), steps)
 
     # integrate the system and return generated data
     all_data = odeint(func = f, y0 = initial_state, t = T)
 
-    return all_data
+    return all_data[washout:]
 
 if __name__ == '__main__':
     pass
