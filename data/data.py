@@ -84,10 +84,7 @@ def generate_roessler(params=[0.1, 0.1, 18], initial_state=[1, 1, 1],
     # integrate the system and return generated data
     all_data = odeint(func = f, y0 = initial_state, t = T)
 
-    if t_min == 0:
-        return all_data
-    else:
-        return all_data[int(t_min * len(T)):]
+    return all_data
 
 if __name__ == '__main__':
     pass
