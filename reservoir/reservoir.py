@@ -73,17 +73,24 @@ def generate_reservoir(u, rho, s_in, R, seed):
     '''
     # extract dimensions
     T = u.shape[0]
-    D = u.shape[1]
+    try:
+        D = u.shape[1]
+    except IndexError:
+        D = 1
 
     # generate rotation and weight matrices
     A, W_in = generate_inputs(rho=rho, s_in=s_in, R=R, D=D, seed=seed)
     # initialise reservoir with first signal
-    r_0 = np.matmul(W_in, u[0])
+    r_0 = None
+    if D > 1:
+        r_0 = np.matmul(W_in, u[0])
+    elif D == 1:
+        r_0 = u[0] * W_in 
 
     # allocate memory for reservoir
     r = np.ndarray((T, R))
     # set first reservoir state
-    r[0] = r_0
+    r[0] = list(r_0)
     # set iterated reservoir states
     for t in range(1, T):
         r[t] = next_res(
@@ -101,7 +108,10 @@ def train_p(u, rho, s_in, R, beta, seed):
     '''
     # dimensions of data
     T = u.shape[0]
-    D = u.shape[1]
+    try:
+        D = u.shape[1]
+    except:
+        D = 1
     
     # generate reservoir
     r, A, W_in = generate_reservoir(u=u, rho=rho, s_in=s_in, R=R, seed=seed)
@@ -131,7 +141,10 @@ def W_out(r_t, p):
 
 
 def predict(u_0, p, T, A, W_in, r_0=None):
-    D = u_0.shape[0]
+    try:
+        D = u_0.shape[0]
+    except IndexError:
+        D = 1
 
     # initialise output
     u_hat = np.ndarray((T, D))
@@ -152,6 +165,9 @@ def predict(u_0, p, T, A, W_in, r_0=None):
         u_hat[t] = W_out(curr_res, p)
         prev_res = curr_res
 
+    if D == 1:
+        return u_hat.flatten()
+        
     return u_hat
     
 
