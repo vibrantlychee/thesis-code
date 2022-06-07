@@ -9,7 +9,7 @@ attractor)
 [ ] Train on an IC -> test using just that IC -> RMSE (a bit higher)
 [ ] Train on an IC -> test using another IC -> RMSE (a bit lower)
 
-Do the above match Griffith (2019)?
+Are the above in the same order of magnitude as Griffith (2019)?
 
 # Computational
 
