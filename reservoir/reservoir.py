@@ -23,14 +23,15 @@ def generate_inputs(rho, s_in, R, D, seed):
 
     A = seed.rand(R, R)
     W_in = seed.rand(R, D)
+    W_in = (2 * s_in) * W_in - s_in
 
     # compute largest eigenvalue or singular value
     max_eigval_A = max(np.linalg.eigvals(A))
-    max_eigval_W_in = max(np.linalg.svd(W_in)[1])
+    # max_eigval_W_in = max(np.linalg.svd(W_in)[1])
 
     # rescale A and W_in
     A = (rho / max_eigval_A) * A
-    W_in = (s_in / max_eigval_W_in) * W_in
+    # W_in = (s_in / max_eigval_W_in) * W_in
 
     # TO DO: sparseness
 
@@ -140,7 +141,7 @@ def W_out(r_t, p):
     return np.matmul(r_t, P_1) + np.matmul(r_t ** 2, P_2)
 
 
-def predict(u_0, p, T, A, W_in, r_0=None):
+def predict(u_0, p, T, A, W_in, r_0=None, full=False):
     try:
         D = u_0.shape[0]
     except IndexError:
@@ -159,8 +160,10 @@ def predict(u_0, p, T, A, W_in, r_0=None):
         if r_0 == None:
             r_0 = (W_in * u_0).flatten()
 
+    full_res = []
     prev_res = r_0
     for t in range(1, T, 1):
+        full_res.append(prev_res)
         curr_res = next_res(prev_res, u_hat[t-1], A, W_in)
         u_hat[t] = W_out(curr_res, p)
         prev_res = curr_res
@@ -168,6 +171,9 @@ def predict(u_0, p, T, A, W_in, r_0=None):
     if D == 1:
         return u_hat.flatten()
         
+    if full:
+        return u_hat, np.array(full_res)
+    
     return u_hat
     
 
