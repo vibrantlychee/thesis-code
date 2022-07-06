@@ -1,11 +1,10 @@
-################################################################################
-#####-MODULE-FOR-DATA-GENERATION-###############################################
-################################################################################
+"""
+Module for generating data points of the Lorenz-63 and Roessler systems. 
+"""
 
 import numpy as np
 from scipy.integrate import odeint
 
-# lorenz-63
 def generate_lorenz_63(params=[10, 28, 8/3], initial_state=[1, 1, 1],
                         del_t=0.02, steps=1000, washout=500):
     '''
