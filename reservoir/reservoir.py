@@ -1,4 +1,6 @@
-# module for generating reservoir, training parameters, and predicting
+"""
+Methods for generating a reservoir, training parameters, and predicting.
+"""
 
 import numpy as np
 
