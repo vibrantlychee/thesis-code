@@ -1,17 +1,26 @@
-# General
-- [ ] Implement Griffith, Pomerance & Gauthier (2019) - Forecasting Chaotic Systems
-with Very Low Connectivity Reservoir Computers
+# Programming Component
+`data.py`
 - [ ] Modify `data.generate_**()` functions washout code. Either according to 
 Griffith (2019) or moving spatial average (to ensure it has converged on the
 attractor)
 
-# Check Performance and Optimisation of Hyperparameters
+Implement Griffith, Pomerance & Gauthier (2019) - Forecasting Chaotic Systems
+with Very Low Connectivity Reservoir Computers:
+- [x] Internal reservoir construction
+- [x] Reservoir dynamics
+- [ ] Output layer
+- [ ] Forecasting
+- [ ] Bayesian optimisation vs use their parameters
+
+## Check Performance and Optimisation of Hyperparameters
 - [ ] Train on an IC -> test using just that IC -> RMSE (a bit higher)
 - [ ] Train on an IC -> test using another IC -> RMSE (a bit lower)
 
 Are the above in the same order of magnitude as Griffith (2019)?
 
-# Computational
+## Packaging into PyPi
+
+# Computational Component
 
 ## Distribution of Testing Error
 For each, keep the hyperparameters fixed. But the random matrices A, W_in are 
@@ -50,7 +59,7 @@ Do Chart 1 and Chart 2 resemble Fig.2 in GottwaldReich_PhysicaD2021?
 ## Roessler
 - [ ] Repeat above for Roessler system
 
-# Theoretical
+# Analytical Component
 Assume the activation function is linear (replace $\tanh$ with identity). 
 - [ ] Write out some terms for the reservoir.
 - [ ] Is there any discernible pattern? Can any conclusions be drawn?

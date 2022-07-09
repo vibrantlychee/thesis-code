@@ -1,62 +1,120 @@
 """
-Methods for generating a reservoir, training parameters, and predicting.
+Methods for reservoir construction, output training, forecasting, and 
+hyperparameter tuning.
 """
 
 import numpy as np
 
-def generate_inputs(rho, s_in, R, D, seed):
-    '''
-    Given parameters rho, s_in, and a seed, returns the rotation and weight 
-    matrices whose elements are randomly drawn from Uniform(0, 1). The 
-    output matrices are rescaled so that their largest eigenvalues are less 
-    than or equal to rho and s_in respectively. 
+def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
+    """
+    Given hyperparameters, generates the matrix W_in, representing connections 
+    between the input signal and nodes within the reservoir. 
+
+    Args:
+        hyperparams (dict): dictionary of hyperparameters.
+            Must have the keys 'SIGMA' and 'RHO_IN'. 
+        shape (tuple): tuple of two nonnegative integers, representing N x d.
+        seed (int): seed for use when sampling using numpy.
+            Consider keeping track of the seed used to ensure results are 
+            reproducible. 
+
+    Returns:
+        (np.ndarray): matrix of shape N x d.
+    """
     
-    INPUTS:     rho:    (float) spectral radius of rotation matrix A
-                s_in:   (float) spectral radius of weight matrix W_in
-                R:      (int) dimension of reservoir
-                D:      (int) dimension of input signal
-                seed:   (int) seed for numpy RNG
+    # parse hyperparameters
+    SIGMA = hyperparams['SIGMA']
+    RHO_IN = hyperparams['RHO_IN']
 
-    OUTPUTS:    A:      (np.ndarray) matrix of shape (R, R)
-                W_in:   (np.ndarray) matrix of shape (R, D+1)
-    '''
+    # initialise output matrix of given shape
+    W_in = np.ndarray(shape)
 
-    seed = np.random.RandomState(seed)
+    # set random state using given seed
+    state = np.random.RandomState(seed)
 
-    A = seed.rand(R, R)
-    W_in = seed.rand(R, D)
-    W_in = (2 * s_in) * W_in - s_in
+    # fill in connections in W_in 
+    for i in range(W_in.shape[0]):
+        for j in range (W_in.shape[1]):
+            # whether or not connection exists is Bernoulli(SIGMA)
+            W_in[i][j] = (state.uniform() < SIGMA) * 1
+            # if connection exists, its weight is Normal(0, RHO_IN ** 2)
+            if W_in[i][j] == 1:
+                W_in[i][j] = (state.normal(0, RHO_IN ** 2))
 
-    # compute largest eigenvalue or singular value
-    max_eigval_A = max(np.linalg.eigvals(A))
-    # max_eigval_W_in = max(np.linalg.svd(W_in)[1])
+    return W_in
 
-    # rescale A and W_in
-    A = (rho / max_eigval_A) * A
-    # W_in = (s_in / max_eigval_W_in) * W_in
 
-    # TO DO: sparseness
-
-    return A, W_in
-
-def next_res(r_prev, u_in, A, W_in):
-    '''
-    Given the previous reservoir state, rotation and weight matrices, and 
-    hyperparameters, generates the next reservoir state. 
+def generate_W_r(hyperparams: dict, shape: tuple, seed: int):
+    """
+    Given hyperparameters, generates the matrix W_r, representing connections
+    between reservoir nodes in the network. 
     
-    INPUTS:     r_prev:     (np.array) previous reservoir state of shape (R, 1)
-                u_in:       (np.array) input signal state of shape (D, 1)
-                A:          (np.ndarray) rotation matrix of shape (R, R)
-                W_in:       (np.ndarray) weight matrix of shape (R, D)
+    Args:
+        hyperparams (dict): dictionary of hyperparameters. 
+            Must have the keys 'K' and 'RHO_R'.
+        shape (tuple): tuple of two nonnegative integers, representing N x N.
+        seed (int): seed for use when sampling using numpy.
+            Consider keeping track of the seed used to ensure results are 
+            reproducible. 
+
+    Returns:
+        (np.ndarray): matrix of shape N x N.
+    """
+
+    # parse hyperparameters
+    K = hyperparams["K"]
+    RHO_R = hyperparams["RHO_R"]
+
+    # initialise output matrix of given shape
+    W_r = np.ndarray(shape)
+
+    # set random state using given seed
+    state = np.random.RandomState(seed)
+
+    # fill in connections in W_r
+    for i in range(W_r.shape[0]):
+        # choose k nodes without replacement
+        choices = state.choice(W_r.shape[0], size=K, replace=False)
         
-    OUTPUTS:    (np.array) next reservoir state of shape (R, 1)
-    '''
-    term = np.tanh(
-        (np.array(np.matmul(np.asmatrix(A), np.asmatrix(r_prev).transpose())).flatten())
-        + (np.array(np.matmul(np.asmatrix(W_in), np.asmatrix(u_in).transpose())).flatten())
-    )
+        for j in range(W_r.shape[1]):
+            if j in choices:
+                W_r[i][j] = state.normal(0, 1)
+            else:
+                W_r[i][j] = 0
 
-    return term
+    # spectral radius of W_r
+    spectral_radius = max(abs(np.linalg.eigvals(W_r))) 
+
+    # rescale W_r so that its spectral radius is equal to RHO_R
+    W_r = (RHO_R / spectral_radius) * W_r
+
+    return W_r
+
+def next_res(r_prev: np.ndarray, u_prev: np.ndarray, hyperparams: dict, W_r: np.ndarray, W_in: np.ndarray, delta_t: np.double):
+    """
+    Computes the dynamics of the reservoir.
+
+    Args:
+        r_prev (np.ndarray): the previous reservoir state, of shape N x 1.
+        u_prev (np.ndarray): the previous input signal, of shape d x 1.
+        hyperparams (dict): dictionary of hyperparameters.
+            Must have the key 'GAMMA'. A sensible range for GAMMA is 7 - 11. 
+        W_r (np.ndarray): the adjacency matrix of the internal connection 
+            network, of shape N x N. 
+        W_in (np.ndarray): the adjacency matrix of the input signal to node 
+            network, of shape N x d.  
+        delta_t (np.double): the size of the time step. 
+            Note that this should be the same as the time step used to integrate
+            the dynamical system being forecasted (i.e. the input signal). 
+    
+    Returns:
+        (np.ndarray): the next reservoir state, of shape N x 1. 
+    """
+
+    # parse hyperparameter
+    GAMMA = hyperparams["GAMMA"]
+    
+    return r_prev + delta_t * ((-GAMMA) * r_prev) + GAMMA * np.tanh(np.dot(W_r, r_prev) + np.dot(W_in, u_prev))
 
 def generate_reservoir(u, rho, s_in, R, seed):
     '''
