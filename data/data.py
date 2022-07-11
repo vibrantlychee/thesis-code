@@ -5,7 +5,7 @@ Module for generating data points of the Lorenz-63 and Roessler systems.
 import numpy as np
 from scipy.integrate import odeint
 
-def generate_lorenz_63(params=[10, 28, 8/3], initial_state=[1, 1, 1],
+def generate_lorenz_63(params=[10, 28, -8/3], initial_state=[1, 1, 1],
                         del_t=0.02, steps=1000, washout=500):
     '''
     Input:      params:         parameters of the Lorenz-63 system
@@ -34,7 +34,7 @@ def generate_lorenz_63(params=[10, 28, 8/3], initial_state=[1, 1, 1],
         return (
             sigma * (y - x),
             x * (rho - z) - y,
-            x * y - beta * z
+            x * y + beta * z
         )
     
     # define length of simulation (time), i.e. number of time increments
