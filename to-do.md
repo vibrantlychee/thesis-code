@@ -8,9 +8,11 @@ Implement Griffith, Pomerance & Gauthier (2019) - Forecasting Chaotic Systems
 with Very Low Connectivity Reservoir Computers:
 - [x] Internal reservoir construction
 - [x] Reservoir dynamics
-- [ ] Output layer
+- [x] Echo state network generation (training)
+- [x] Regularised regression (Tikhonov)
+- [x] Echo state network generation (test)
 - [ ] Forecasting
-- [ ] Bayesian optimisation vs use their parameters
+- [ ] Bayesian optimisation ~~vs use their parameters~~
 
 ## Check Performance and Optimisation of Hyperparameters
 - [ ] Train on an IC -> test using just that IC -> RMSE (a bit higher)
@@ -19,25 +21,27 @@ with Very Low Connectivity Reservoir Computers:
 Are the above in the same order of magnitude as Griffith (2019)?
 
 ## Packaging into PyPi
+- [ ] Exception handling.
+- [ ] Learn how to package python projects.
 
 # Computational Component
 
 ## Distribution of Testing Error
-For each, keep the hyperparameters fixed. But the random matrices A, W_in are 
-drawn each iteration. 
+For each, keep the hyperparameters fixed, and the random matrices $W_r$,
+$W_{\text{in}}$ are drawn each iteration. 
 
 For each iteration, store each as a file
 - IC
 - Actual Trajectory
-- A and W_in
+- $W_r$ and $W_{\text{in}}$
 - Reservoir
 - Predicted Trajectory
 - RMSE(actual_trajectory, predicted_trajectory)
 
 Checklist:
-- [ ] (Ordinary) Train on an IC -> test using 1000 other IC's (new A, W_in) -> RMSE
-- [ ] (Just x) Train on an IC -> test using 1000 other IC's (new A, W_in) -> RMSE
-- [ ] (Delay) Train on an IC -> test using 1000 other IC's (new A, W_in) -> RMSE
+- [ ] (Ordinary) Train on an IC -> test using 1000 other IC's (new $W_r$, $W_{\text{in}}$) -> RMSE
+- [ ] (Just x) Train on an IC -> test using 1000 other IC's (new $W_r$, $W_{\text{in}}$) -> RMSE
+- [ ] (Delay) Train on an IC -> test using 1000 other IC's (new $W_r$, $W_{\text{in}}$) -> RMSE
 
 For Ordinary, Just x, and Delay, plot the histogram of RMSE's. 
 

@@ -4,6 +4,7 @@ hyperparameter tuning.
 """
 
 import numpy as np
+from typing import Type, Optional, Union, Tuple
 
 def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     """
@@ -13,6 +14,8 @@ def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     Args:
         hyperparams (dict): dictionary of hyperparameters.
             Must have the keys 'SIGMA' and 'RHO_IN'. 
+            Good ranges for the hyperparameters are: 'SIGMA': 0.1 - 1.0, 
+            'RHO_IN': 0.3 - 1.5 (Griffith et. al.).
         shape (tuple): tuple of two nonnegative integers, representing N x d.
         seed (int): seed for use when sampling using numpy.
             Consider keeping track of the seed used to ensure results are 
@@ -44,7 +47,7 @@ def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     return W_in
 
 
-def generate_W_r(hyperparams: dict, shape: tuple, seed: int):
+def generate_W_r(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     """
     Given hyperparameters, generates the matrix W_r, representing connections
     between reservoir nodes in the network. 
@@ -52,6 +55,8 @@ def generate_W_r(hyperparams: dict, shape: tuple, seed: int):
     Args:
         hyperparams (dict): dictionary of hyperparameters. 
             Must have the keys 'K' and 'RHO_R'.
+            Good ranges for the hyperparameters are: 'K': 1 - 5,
+            'RHO_R': 0.3 - 1.5 (Griffith et. al.).
         shape (tuple): tuple of two nonnegative integers, representing N x N.
         seed (int): seed for use when sampling using numpy.
             Consider keeping track of the seed used to ensure results are 
@@ -90,15 +95,31 @@ def generate_W_r(hyperparams: dict, shape: tuple, seed: int):
 
     return W_r
 
-def next_res(r_prev: np.ndarray, u_prev: np.ndarray, hyperparams: dict, W_r: np.ndarray, W_in: np.ndarray, delta_t: np.double):
+def modify_node(node: np.ndarray):
+    N = node.shape[0]
+    modified_node = np.ndarray(N)
+    for i in range(N):
+        if i <= N / 2:
+            modified_node[i] = node[i]
+        else:
+            modified_node[i] = node[i] ** 2
+    
+    return modified_node
+
+def next_training_node(r_prev: np.ndarray, u_prev: np.ndarray, 
+                       hyperparams: dict, W_r: np.ndarray, 
+                       W_in: np.ndarray, delta_t: np.double) -> np.ndarray:
     """
-    Computes the dynamics of the reservoir.
+    Computes the dynamics of the reservoir in the training stage. That is, 
+    the next reservoir stage is dependent on both the previous reservoir state 
+    and an input signal. 
 
     Args:
         r_prev (np.ndarray): the previous reservoir state, of shape N x 1.
         u_prev (np.ndarray): the previous input signal, of shape d x 1.
         hyperparams (dict): dictionary of hyperparameters.
-            Must have the key 'GAMMA'. A sensible range for GAMMA is 7 - 11. 
+            Must have the key 'GAMMA'. 
+            A good range for GAMMA is 7 - 11 (Griffith et. al.). 
         W_r (np.ndarray): the adjacency matrix of the internal connection 
             network, of shape N x N. 
         W_in (np.ndarray): the adjacency matrix of the input signal to node 
@@ -114,54 +135,78 @@ def next_res(r_prev: np.ndarray, u_prev: np.ndarray, hyperparams: dict, W_r: np.
     # parse hyperparameter
     GAMMA = hyperparams["GAMMA"]
     
-    return r_prev + delta_t * ((-GAMMA) * r_prev) + GAMMA * np.tanh(np.dot(W_r, r_prev) + np.dot(W_in, u_prev))
+    return r_prev + delta_t * (((-GAMMA) * r_prev) + GAMMA * np.tanh(np.dot(W_r, r_prev) + np.dot(W_in, u_prev)))
 
-def generate_reservoir(u, rho, s_in, R, seed):
-    '''
-    Given input signal data u and hyperparameters, generates the entire 
-    reservoir over all time and outputs as a np.ndarray of shape (T, R). 
+def generate_training_reservoir(data: np.ndarray, hyperparams: dict, 
+                       W_r: np.ndarray, W_in: np.ndarray, delta_t: np.double,
+                       adjust_for_symmetry: bool = True) -> Union[np.ndarray, 
+                       Tuple[np.ndarray, np.ndarray]]:
+    """
+    Computes the reservoir network given the generating training data points. 
 
-    INPUTS:     u:          (np.ndarray) input signal data of shape (T, D)
-                alpha:      (float) leaking rate
-                rho:        (float) spectral radius of rotation matrix A
-                s_in:       (float) spectral radius of weight matrix W_in
-                R:          (int)   number of nodes in reservoir network
-                seed:       (int) seed for numpy RNG
+    Args:
+        data (np.ndarray): matrix of input signals of shape n x d.
+        hyperparams (dict): dictionary of hyperparameters.
+            Must have the keys 'GAMMA', 'SIGMA', 'RHO_IN', 'K', 'RHO_R'. 
+            Good ranges for the hyperparameters are: GAMMA: 7 - 11, 
+            'SIGMA': 0.1 - 1.0, 'RHO_IN': 0.3 - 1.5, 'K': 1 - 5,
+            'RHO_R': 0.3 - 1.5 (Griffith et. al.).
+        W_r (np.ndarray): the adjacency matrix of the internal connection 
+            network, of shape N x N. 
+        W_in (np.ndarray): the adjacency matrix of the input signal to node 
+            network, of shape N x d. 
+        delta_t (np.double): the size of the time step. 
+            Note that this should be the same as the time step used to integrate
+            the dynamical system being forecasted (i.e. used to generate the 
+            input signal). 
+        W_out (np.ndarray): the output layer matrix, computed using Tikhonov 
+            regularised regression in the training stage, of shape 3 x N. 
+            Defaults to None. If it is the forecast stage, W_out must be 
+            supplied.
 
-    OUTPUTS:    (np.ndarray) the reservoir as a matrix of shape (T, R), where 
-                for any t in [0, T], the t-th row represents the reservoir 
-                state at time t.
-    '''
-    # extract dimensions
-    T = u.shape[0]
-    try:
-        D = u.shape[1]
-    except IndexError:
-        D = 1
+    Returns:
+        (Union[np.ndarray, tuple]): either the echo state network (if 
+            adjust_for_symmetry is True), or a tuple of the modified echo state 
+            network and the unmodified echo state network (if 
+            adjust_for_symmetry is False).
+    """
+    # compute important dimensions
+    n = data.shape[0]      # time steps
+    N = W_r.shape[0]
 
-    # generate rotation and weight matrices
-    A, W_in = generate_inputs(rho=rho, s_in=s_in, R=R, D=D, seed=seed)
-    # initialise reservoir with first signal
-    r_0 = None
-    if D > 1:
-        r_0 = np.matmul(W_in, u[0])
-    elif D == 1:
-        r_0 = u[0] * W_in 
+    # initial reservoir state
+    r_0 = np.dot(W_in, data[0])
 
-    # allocate memory for reservoir
-    r = np.ndarray((T, R))
-    # set first reservoir state
-    r[0] = list(r_0)
-    # set iterated reservoir states
-    for t in range(1, T):
-        r[t] = next_res(
-            r_prev=r[t-1],
-            u_in=u[t-1],
-            A=A,
-            W_in=W_in
+    # initialise echo state network
+    res = np.ndarray((n, N))
+    # fill in echo state network
+    for i in range(n):
+        # first reservoir is unique (as it has no previous state)
+        if i == 0:
+            res[i] = r_0
+        # next reservoir is dependent on reservoir dynamics
+        res[i] = next_training_node(
+            r_prev=res[i-1],
+            u_prev=data[i-1],
+            hyperparams=hyperparams,
+            W_r=W_r,
+            W_in=W_in,
+            delta_t=delta_t
         )
 
-    return r, A, W_in
+    if not(adjust_for_symmetry):
+        return res
+    else:
+        # modify echo state network to account for symmetry
+        modified_res = np.ndarray((n, N))
+
+        for k in range(n):
+            modified_res[k] = modify_node(res[k])
+
+        return modified_res, res
+
+def fit(data: np.ndarray, training_res: np.ndarray):
+    pass
 
 def train_p(u, rho, s_in, R, beta, seed):
     '''
@@ -224,7 +269,7 @@ def predict(u_0, p, T, A, W_in, r_0=None, full=False):
     prev_res = r_0
     for t in range(1, T, 1):
         full_res.append(prev_res)
-        curr_res = next_res(prev_res, u_hat[t-1], A, W_in)
+        curr_res = next_training_node(prev_res, u_hat[t-1], A, W_in)
         u_hat[t] = W_out(curr_res, p)
         prev_res = curr_res
 
