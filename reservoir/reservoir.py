@@ -95,7 +95,32 @@ def generate_W_r(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
 
     return W_r
 
-def modify_node(node: np.ndarray):
+def modify_node(node: np.ndarray, adjust_for_symmetry: bool = True):
+    """
+    Modifies a given reservoir node to better account for the symmetry of the 
+    input signal (e.g. a Lorenz system). 
+    
+    Args:
+        node (np.ndarray): reservoir state of shape N x 1.
+        adjust_for_symmetry (bool): Whether or not a transformation is required 
+            on the reservoir in order to account for any symmetry in the 
+            underlying input signal. 
+
+            Defaults to True. 
+
+    Returns:
+        (np.ndarray): modified reservoir state of shape N x 1.
+            If adjust_for_symmetry is False, then the node is returned 
+            unchanged.
+
+            If adjust_for_symmetry is True, then components whose index is 
+            greater than N // 2 have been squared. Components whose index is 
+            less than or equal to N // 2 remain unchanged.
+    """
+    
+    if not(adjust_for_symmetry):
+        return node
+
     N = node.shape[0]
     modified_node = np.ndarray(N)
     for i in range(N):
@@ -139,10 +164,10 @@ def next_training_node(r_prev: np.ndarray, u_prev: np.ndarray,
 
 def generate_training_reservoir(data: np.ndarray, hyperparams: dict, 
                        W_r: np.ndarray, W_in: np.ndarray, delta_t: np.double,
-                       adjust_for_symmetry: bool = True) -> Union[np.ndarray, 
-                       Tuple[np.ndarray, np.ndarray]]:
+                       adjust_for_symmetry: bool = True) -> np.ndarray:
     """
-    Computes the reservoir network given the generating training data points. 
+    Computes the training reservoir network given the generating training data 
+    points. 
 
     Args:
         data (np.ndarray): matrix of input signals of shape n x d.
@@ -159,23 +184,19 @@ def generate_training_reservoir(data: np.ndarray, hyperparams: dict,
             Note that this should be the same as the time step used to integrate
             the dynamical system being forecasted (i.e. used to generate the 
             input signal). 
-        W_out (np.ndarray): the output layer matrix, computed using Tikhonov 
-            regularised regression in the training stage, of shape 3 x N. 
-            Defaults to None. If it is the forecast stage, W_out must be 
-            supplied.
+        adjust_for_symmetry (bool): Whether or not a transformation is required 
+            on the reservoir in order to account for any symmetry in the 
+            underlying input signal. 
+
+            Defaults to True. Refer to modify_node() for how this adjustment is 
+            performed. 
 
     Returns:
-        (Union[np.ndarray, tuple]): either the echo state network (if 
-            adjust_for_symmetry is True), or a tuple of the modified echo state 
-            network and the unmodified echo state network (if 
-            adjust_for_symmetry is False).
+        (np.ndarray): the generated reservoir network.
     """
     # compute important dimensions
     n = data.shape[0]      # time steps
-    N = W_r.shape[0]
-
-    # initial reservoir state
-    r_0 = np.dot(W_in, data[0])
+    N = W_r.shape[0]       # reservoir dimension
 
     # initialise echo state network
     res = np.ndarray((n, N))
@@ -183,30 +204,163 @@ def generate_training_reservoir(data: np.ndarray, hyperparams: dict,
     for i in range(n):
         # first reservoir is unique (as it has no previous state)
         if i == 0:
-            res[i] = r_0
+            res[i] = np.dot(W_in, data[0])
         # next reservoir is dependent on reservoir dynamics
-        res[i] = next_training_node(
-            r_prev=res[i-1],
-            u_prev=data[i-1],
-            hyperparams=hyperparams,
-            W_r=W_r,
-            W_in=W_in,
-            delta_t=delta_t
-        )
+        else:
+            res[i] = next_training_node(
+                r_prev=res[i-1],
+                u_prev=data[i-1],
+                hyperparams=hyperparams,
+                W_r=W_r,
+                W_in=W_in,
+                delta_t=delta_t
+            )
+
+    return np.array([modify_node(res[i], adjust_for_symmetry) for i in range(n)])
+
+
+def generate_W_out(data: np.ndarray, res: np.ndarray, alpha: np.double):
+    """
+    Given the input signal and the reservoir, trains the linear transformation 
+    of the output layer using Tikhonov (ridge) regularised regression. 
+
+    Args:
+        data (np.ndarray): the input signal, of shape n x d.
+        res (np.ndarray): the reservoir network, of shape n x N.
+        alpha (np.double): the Tikhonov regularisation constant. 
+
+    Returns:
+        (np.ndarray) the output linear transformation, of shape d x N.
+    """
+    N = res.shape[1]
+
+    return np.dot(np.dot(np.linalg.inv(np.dot(res.transpose(), res) + alpha * np.identity(N)), res.transpose()), data).transpose()
+    
+def next_forecast_node(r_prev: np.ndarray, hyperparams: dict, W_r: np.ndarray,
+                       W_in: np.ndarray, W_out: np.ndarray, delta_t: np.double, 
+                       adjust_for_symmetry: bool = True) -> np.ndarray:
+    """
+    Computes the dynamics of the reservoir in the forecast stage. That is, 
+    the next reservoir node is dependent only on the previous reservoir state. 
+    In particular, the next reservoir node does not depend on any incoming 
+    input signal. 
+
+    Args:
+        r_prev (np.ndarray): the previous reservoir state, of shape N x 1.
+        hyperparams (dict): dictionary of hyperparameters.
+            Must have the key 'GAMMA'. 
+            A good range for GAMMA is 7 - 11 (Griffith et. al.). 
+        W_r (np.ndarray): the adjacency matrix of the internal connection 
+            network, of shape N x N. 
+        W_in (np.ndarray): the adjacency matrix of the input signal to node 
+            network, of shape N x d.  
+        W_out (np.ndarray): the output linear transformation. 
+        delta_t (np.double): the size of the time step. 
+            Note that this should be the same as the time step used to integrate
+            the dynamical system (input signal) being forecasted.
+        adjust_for_symmetry (bool): Whether or not a transformation is required 
+            on the reservoir in order to account for any symmetry in the 
+            underlying input signal. 
+
+            Defaults to True. Refer to modify_node() for how this adjustment is 
+            performed. 
+    
+    Returns:
+        (np.ndarray): the next reservoir state, of shape N x 1. 
+
+    """
+    GAMMA = hyperparams["GAMMA"]
+
+    return r_prev + delta_t * (((-GAMMA) * r_prev) + GAMMA * np.tanh(np.dot(W_r, r_prev) + np.dot(W_in, np.dot(W_out, modify_node(r_prev, adjust_for_symmetry)))))
+
+def generate_forecast_reservoir(r_0: np.ndarray, data: np.ndarray, 
+                                hyperparams: dict, W_r: np.ndarray,
+                                W_in: np.ndarray, W_out: np.ndarray, 
+                                delta_t: np.double, 
+                                adjust_for_symmetry: bool = True) -> np.ndarray:
+    """
+    Computes the forecast reservoir network given test data points. 
+
+    Args: 
+        data (np.ndarray): matrix of input signals of shape n x d.
+        hyperparams (dict): dictionary of hyperparameters.
+            Must have the keys 'GAMMA', 'SIGMA', 'RHO_IN', 'K', 'RHO_R'. 
+            Good ranges for the hyperparameters are: GAMMA: 7 - 11, 
+            'SIGMA': 0.1 - 1.0, 'RHO_IN': 0.3 - 1.5, 'K': 1 - 5,
+            'RHO_R': 0.3 - 1.5 (Griffith et. al.).
+        W_r (np.ndarray): the adjacency matrix of the internal connection 
+            network, of shape N x N. 
+        W_in (np.ndarray): the adjacency matrix of the input signal to node 
+            network, of shape N x d. 
+        W_out (np.ndarray): the output layer matrix, computed using Tikhonov 
+            regularised regression in the training stage, of shape d x N. 
+        delta_t (np.double): the size of the time step. 
+            Note that this should be the same as the time step used to integrate
+            the dynamical system being forecasted (i.e. used to generate the 
+            input signal). 
+        adjust_for_symmetry (bool): Whether or not a transformation is required 
+            on the reservoir in order to account for any symmetry in the 
+            underlying input signal. 
+
+            Defaults to True. Refer to modify_node() for how this adjustment is 
+            performed. 
+
+    Returns:
+        (np.ndarray): the generated reservoir network. 
+    """
+    # dimensions
+    n = data.shape[0]
+    N = W_r.shape[0]
+    
+    # initialise reservoir network
+    res = np.ndarray((n, N))
+    for i in range(n):
+        if i == 0:
+            res[i] = r_0
+        else:
+            res[i] = next_forecast_node(
+                r_prev=res[i-1],
+                hyperparams=hyperparams,
+                W_r=W_r,
+                W_in=W_in,
+                W_out=W_out,
+                delta_t=delta_t,
+                adjust_for_symmetry=adjust_for_symmetry
+            )
 
     if not(adjust_for_symmetry):
         return res
     else:
-        # modify echo state network to account for symmetry
-        modified_res = np.ndarray((n, N))
+        return np.array([modify_node(res[i]) for i in range(n)])
 
-        for k in range(n):
-            modified_res[k] = modify_node(res[k])
+def readout_node(node: np.ndarray, W_out: np.ndarray) -> np.ndarray:
+    """
+    Given a reservoir node and output linear transformation, computes the 
+    predicted signal.
 
-        return modified_res, res
+    Args:
+        node (np.ndarray): the reservoir node, of shape N x 1.
+        W_out (np.ndarray): the output linear transformation, of shape d x N.
 
-def fit(data: np.ndarray, training_res: np.ndarray):
-    pass
+    Returns:
+        (np.ndarray): the predicted signal, of shape d x 1. 
+    """
+
+    return np.dot(W_out, node)
+
+def readout_network(res: np.ndarray, W_out: np.ndarray) -> np.ndarray:
+    """
+    Given a reservoir network and output linear transformation, computes the 
+    predicted signal series. 
+
+    Args:
+        res (np.ndarray): the reservoir network, of shape n x N.
+        W_out (np.ndarray): the output linear transformation, of shape d x N.
+
+    Returns:
+        (np.ndarray): the predicted signal series, of shape n x d. 
+    """
+    return np.array([readout_node(res[i], W_out) for i in range(res.shape[0])])
 
 def train_p(u, rho, s_in, R, beta, seed):
     '''

@@ -10,8 +10,8 @@ with Very Low Connectivity Reservoir Computers:
 - [x] Reservoir dynamics
 - [x] Echo state network generation (training)
 - [x] Regularised regression (Tikhonov)
-- [] Echo state network generation (test)
-- [ ] Forecasting
+- [x] Echo state network generation (test)
+- [x] Forecasting
 - [ ] Bayesian optimisation ~~vs use their parameters~~
 
 ## Check Performance and Optimisation of Hyperparameters

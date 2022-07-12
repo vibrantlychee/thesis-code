@@ -88,5 +88,20 @@ def generate_roessler(params=[0.1, 0.1, 18], initial_state=[1, 1, 1],
 
     return all_data[washout:]
 
+def lyapunov_to_steps(k: int, LAMBDA: np.double, delta_t: np.double):
+    """
+    A function to convert a discrete time scale into multiples of Lyapunov 
+    exponents. 
+
+    Args:
+        k (int): the number of Lyapunov exponents desired.
+        LAMBDA (np.double): the Lyapunov exponent.
+        delta_t (np.double): the time step size.
+
+    Returns:
+        (int): the number of time steps equivalent to k Lyapunov time.
+    """
+    return int((k / LAMBDA) / delta_t)
+
 if __name__ == '__main__':
     pass
