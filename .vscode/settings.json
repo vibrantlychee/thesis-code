@@ -1,0 +1,8 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/Users/leoli/Desktop/uni/Honours/thesis-code"
+    ],
+    "python.analysis.extraPaths": [
+        "/Users/leoli/Desktop/uni/Honours/thesis-code"
+    ]
+}
