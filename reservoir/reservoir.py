@@ -167,13 +167,14 @@ def generate_W_out(u: np.ndarray, res: np.ndarray, hyperparams: dict):
 
     return np.dot(np.dot(np.linalg.inv(np.dot(res.transpose(), res) + epsilon * np.identity(R)), res.transpose()), u).transpose()
 
-def generate_forecast_res(u, hyperparams, A, W_in, W_out, alpha=ALPHA):
+def generate_forecast_res(r_0, u, hyperparams, A, W_in, W_out, alpha=ALPHA):
     n = u.shape[0]
     R = hyperparams["R"]
 
 
     res = np.zeros((n, R))
-    res[0] = np.dot(W_in, u[0])
+    # res[0] = np.dot(W_in, u[0])
+    res[0] = r_0
 
     for i in range(n):
         if i == 0:
