@@ -89,14 +89,14 @@ def generate_datasets(trial_id):
         initial_state=training_initial_states[trial_id],
         del_t=simulation_parameters["DEL_T"],
         steps=simulation_parameters["STEPS"],
-        washout=simulation_parameters["WASHOUT"]
+        transient=simulation_parameters["WASHOUT"]
     )
 
     test_data = data.generate_lorenz_63(
         initial_state=test_initial_states[trial_id],
         del_t=simulation_parameters["DEL_T"],
         steps=simulation_parameters["STEPS"],
-        washout=simulation_parameters["WASHOUT"]
+        transient=simulation_parameters["WASHOUT"]
     )
     print("\t\tDataset #{} generated.".format(trial_id))
 
