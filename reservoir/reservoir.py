@@ -6,7 +6,7 @@ hyperparameter tuning.
 import numpy as np
 from typing import Type, Optional, Union, Tuple
 
-def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
+def generate_W_in(hyperparams: dict, shape: tuple, state: np.random.RandomState) -> np.ndarray:
     """
     Given hyperparameters, generates the matrix W_in, representing connections 
     between the input signal and nodes within the reservoir. 
@@ -32,9 +32,6 @@ def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     # initialise output matrix of given shape
     W_in = np.ndarray(shape)
 
-    # set random state using given seed
-    state = np.random.RandomState(seed)
-
     # fill in connections in W_in 
     for i in range(W_in.shape[0]):
         for j in range (W_in.shape[1]):
@@ -47,7 +44,7 @@ def generate_W_in(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     return W_in
 
 
-def generate_W_r(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
+def generate_W_r(hyperparams: dict, shape: tuple, state: np.random.RandomState) -> np.ndarray:
     """
     Given hyperparameters, generates the matrix W_r, representing connections
     between reservoir nodes in the network. 
@@ -74,7 +71,7 @@ def generate_W_r(hyperparams: dict, shape: tuple, seed: int) -> np.ndarray:
     W_r = np.ndarray(shape)
 
     # set random state using given seed
-    state = np.random.RandomState(seed)
+    
 
     # fill in connections in W_r
     for i in range(W_r.shape[0]):
@@ -328,10 +325,7 @@ def generate_forecast_reservoir(r_0: np.ndarray, data: np.ndarray,
                 adjust_for_symmetry=adjust_for_symmetry
             )
 
-    if not(adjust_for_symmetry):
-        return res
-    else:
-        return np.array([modify_node(res[i]) for i in range(n)])
+    return res, np.array([modify_node(res[i]) for i in range(n)]) 
 
 def readout_node(node: np.ndarray, W_out: np.ndarray) -> np.ndarray:
     """
@@ -362,6 +356,9 @@ def readout_network(res: np.ndarray, W_out: np.ndarray) -> np.ndarray:
     """
     return np.array([readout_node(res[i], W_out) for i in range(res.shape[0])])
 
+##############
+#### OLD  ####
+##############
 def train_p(u, rho, s_in, R, beta, seed):
     '''
 

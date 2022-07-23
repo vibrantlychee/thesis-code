@@ -1,9 +1,13 @@
 # Programming Component
 `data.py`
-- [ ] Modify `data.generate_**()` functions washout code. Either according to 
+- [x] Modify `data.generate_**()` functions washout code. Either according to 
 Griffith (2019) or moving spatial average (to ensure it has converged on the
 attractor)
 
+`error.py`
+- [ ] implement forecast time
+
+`reservoir.py`
 Implement Griffith, Pomerance & Gauthier (2019) - Forecasting Chaotic Systems
 with Very Low Connectivity Reservoir Computers:
 - [x] Internal reservoir construction
@@ -12,13 +16,22 @@ with Very Low Connectivity Reservoir Computers:
 - [x] Regularised regression (Tikhonov)
 - [x] Echo state network generation (test)
 - [x] Forecasting
-- [ ] Bayesian optimisation ~~vs use their parameters~~
+- [ ] Run a test to see if bayesian optimisation for every trial is 
+computationally feasible
+
+## Optimisation
+~~Why might the optimisation not be working?~~
+- ~~Perform grid search around the given optimum~~
+- ~~Check if more nodes helps~~
+- ~~Check if longer training period helps~~
+Reservoir computer now works
 
 ## Check Performance and Optimisation of Hyperparameters
-- [ ] Train on an IC -> test using just that IC -> RMSE (a bit higher)
-- [ ] Train on an IC -> test using another IC -> RMSE (a bit lower)
+- [x] Train on an IC -> test using just that IC -> RMSE (a bit higher)
+- [x] Train on an IC -> test using another IC -> RMSE (a bit lower)
 
-Are the above in the same order of magnitude as Griffith (2019)?
+**Are the above in the same order of magnitude as Griffith (2019)?**
+Yes!
 
 ## Packaging into PyPi
 - [ ] Exception handling.
@@ -27,10 +40,10 @@ Are the above in the same order of magnitude as Griffith (2019)?
 # Computational Component
 
 ## Distribution of Testing Error
-For each, keep the hyperparameters fixed, and the random matrices $W_r$,
+For each trial, keep the hyperparameters fixed, and the random matrices $W_r$,
 $W_{\text{in}}$ are drawn each iteration. 
 
-For each iteration, store each as a file
+For each iteration, store each in the same `.npz` file:
 - IC
 - Actual Trajectory
 - $W_r$ and $W_{\text{in}}$

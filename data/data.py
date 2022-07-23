@@ -6,13 +6,13 @@ import numpy as np
 from scipy.integrate import odeint
 
 def generate_lorenz_63(params=[10, 28, -8/3], initial_state=[1, 1, 1],
-                        del_t=0.02, steps=1000, washout=500):
+                        del_t=0.02, steps=1000, transient=500):
     '''
     Input:      params:         parameters of the Lorenz-63 system
                 initial_state:  initial spatial conditions at time t=0
                 del_t:          size of time step
                 steps:          number of time steps
-                washout:        only return values with index greater than or 
+                transient:      only return values with index greater than or 
                                 equal to washout
     
     Output:     a stepsx3 matrix represented as a numpy.ndarray
@@ -44,7 +44,7 @@ def generate_lorenz_63(params=[10, 28, -8/3], initial_state=[1, 1, 1],
     all_data = odeint(func = f, y0 = initial_state, t = T)
 
     # washout time of 500 time steps
-    return all_data[washout:]
+    return all_data[transient:]
 
 # roessler
 def generate_roessler(params=[0.1, 0.1, 18], initial_state=[1, 1, 1],
