@@ -241,7 +241,7 @@ if __name__ == '__main__':
         # for x in paramgrid:
         #     print(x)
         # print(len(paramgrid))
-        pool_2 = multiprocessing.Pool()
+        pool_2 = multiprocessing.Pool(multiprocessing.cpu_count() // 2)
         pool_2.starmap(trial, paramgrid)
         pool_2.close()
         pool_2.join()
