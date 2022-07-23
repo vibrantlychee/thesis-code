@@ -223,24 +223,32 @@ def trial_no_transient_res(seed):
     print("complete.")
 
 if __name__ == '__main__':
+    cpus = int(multiprocessing.cpu_count() * (2/3))
+
+    print("Beginning simulation.")
+    print("Number of CPU cores for this script: {}".format(cpus))
+    
     try:
         os.makedirs(dir)
     except:
         print("Directory already exists.")
     
-    pool = multiprocessing.Pool(int(multiprocessing.cpu_count() * (2/3)))
-    pool.map(
-        func=trial_with_transient_res,
-        iterable=range(NUM_TRIALS)
-    )
-    pool.close()
-    pool.join()
-
-    pool = multiprocessing.Pool(int(multiprocessing.cpu_count() * (2/3)))
+    print("Starting trials with no transient reservoir.")
+    pool = multiprocessing.Pool(cpus)
     pool.map(
         func=trial_no_transient_res,
         iterable=range(NUM_TRIALS)
     )
     pool.close()
     pool.join()
+    print("Completed trials with no transient reservoir.")
 
+    print("Starting trials with transient reservoir.")
+    pool = multiprocessing.Pool(cpus)
+    pool.map(
+        func=trial_with_transient_res,
+        iterable=range(NUM_TRIALS)
+    )
+    pool.close()
+    pool.join()
+    print("Completed trials with transient reservoir.")
